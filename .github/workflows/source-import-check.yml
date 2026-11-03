@@ -1,0 +1,20 @@
+name: Source import readiness
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check required source files
+        shell: bash
+        run: |
+          if [[ ! -f gradlew || ! -f settings.gradle.kts || ! -f androidApp/build.gradle.kts || ! -f shared/build.gradle.kts ]]; then
+            echo "REDACTED source import is incomplete. Required Gradle or app files are missing." >> "$GITHUB_STEP_SUMMARY"
+            echo "This check reports import status; it does not prove the app builds." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "Core source files are present; build and device validation are still required." >> "$GITHUB_STEP_SUMMARY"

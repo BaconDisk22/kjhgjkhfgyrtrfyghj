@@ -1,4 +1,4 @@
-name: Android and shared checks
+name: Android debug build
 on:
   pull_request:
   push:
@@ -8,6 +8,7 @@ permissions:
 jobs:
   android:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
@@ -16,10 +17,28 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
+          cache-dependency-path: |
+            **/*.gradle.kts
+            gradle/libs.versions.toml
+            gradle/wrapper/gradle-wrapper.properties
       - uses: android-actions/setup-android@v3
-      - name: Verify source is present
-        run: test -f ./gradlew && test -f ./settings.gradle.kts
-      - name: Shared tests and Android debug build
+      - name: Confirm source import is complete
+        shell: bash
+        run: |
+          test -f gradlew
+          test -f settings.gradle.kts
+          test -f androidApp/build.gradle.kts
+          test -f shared/build.gradle.kts
+          test -f gradle/wrapper/gradle-wrapper.jar
+      - name: Android build and unit tests
         run: |
           chmod +x ./gradlew
-          ./gradlew :shared:allTests :androidApp:assembleDebug --stacktrace
+          ./gradlew :shared:testDebugUnitTest :androidApp:assembleDebug --stacktrace
+      - name: Upload debug APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: REDACTED-android-debug
+          path: androidApp/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

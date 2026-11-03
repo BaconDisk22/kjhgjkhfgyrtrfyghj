@@ -1,0 +1,30 @@
+# Android / Kotlin / Gradle
+.gradle/
+build/
+**/build/
+local.properties
+*.iml
+.idea/
+*.apk
+*.aab
+*.ipa
+*.dSYM/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# Credentials and private configuration
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+*.p12
+*.mobileprovision
+*.pem
+*.key
+google-services.json
+GoogleService-Info.plist
+secrets.properties
+*.secret
+.DS_Store

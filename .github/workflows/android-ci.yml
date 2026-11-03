@@ -1,0 +1,50 @@
+name: REDACTED source and Android checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  source-status:
+    name: Source import status
+    runs-on: ubuntu-latest
+    outputs:
+      imported: ${{ steps.detect.outputs.imported }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: detect
+        name: Detect complete source
+        shell: bash
+        run: |
+          if [[ -f gradlew && -f settings.gradle.kts && -f androidApp/build.gradle.kts && -f shared/build.gradle.kts && -f gradle/wrapper/gradle-wrapper.jar ]]; then
+            echo "imported=true" >> "$GITHUB_OUTPUT"
+            echo "Complete source tree detected" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "imported=false" >> "$GITHUB_OUTPUT"
+            echo "SOURCE IMPORT PENDING: Android compilation has NOT run. Do not merge until source is imported and build is verified." >> "$GITHUB_STEP_SUMMARY"
+          fi
+  android:
+    name: Android debug build
+    needs: source-status
+    if: needs.source-status.outputs.imported == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - uses: android-actions/setup-android@v3
+      - name: Android build and unit tests
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :shared:testDebugUnitTest :androidApp:assembleDebug --stacktrace
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: REDACTED-android-debug
+          path: androidApp/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

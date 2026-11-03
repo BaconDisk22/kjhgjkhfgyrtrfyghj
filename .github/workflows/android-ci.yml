@@ -1,4 +1,4 @@
-name: Android debug build
+name: REDACTED source and Android checks
 on:
   pull_request:
   push:
@@ -6,37 +6,43 @@ on:
 permissions:
   contents: read
 jobs:
+  source-status:
+    name: Source import status
+    runs-on: ubuntu-latest
+    outputs:
+      imported: ${{ steps.detect.outputs.imported }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: detect
+        name: Detect complete source
+        shell: bash
+        run: |
+          if [[ -f gradlew && -f settings.gradle.kts && -f androidApp/build.gradle.kts && -f shared/build.gradle.kts && -f gradle/wrapper/gradle-wrapper.jar ]]; then
+            echo "imported=true" >> "$GITHUB_OUTPUT"
+            echo "Complete source tree detected" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "imported=false" >> "$GITHUB_OUTPUT"
+            echo "SOURCE IMPORT PENDING: Android compilation has NOT run. Do not merge until source is imported and build is verified." >> "$GITHUB_STEP_SUMMARY"
+          fi
   android:
+    name: Android debug build
+    needs: source-status
+    if: needs.source-status.outputs.imported == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: false
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
           cache: gradle
-          cache-dependency-path: |
-            **/*.gradle.kts
-            gradle/libs.versions.toml
-            gradle/wrapper/gradle-wrapper.properties
       - uses: android-actions/setup-android@v3
-      - name: Confirm source import is complete
-        shell: bash
-        run: |
-          test -f gradlew
-          test -f settings.gradle.kts
-          test -f androidApp/build.gradle.kts
-          test -f shared/build.gradle.kts
-          test -f gradle/wrapper/gradle-wrapper.jar
       - name: Android build and unit tests
         run: |
           chmod +x ./gradlew
           ./gradlew :shared:testDebugUnitTest :androidApp:assembleDebug --stacktrace
       - name: Upload debug APK
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: REDACTED-android-debug

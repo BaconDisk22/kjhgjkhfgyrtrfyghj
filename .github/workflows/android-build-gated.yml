@@ -1,0 +1,39 @@
+name: Android build (source-gated)
+on:
+  workflow_dispatch:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check build prerequisites
+        id: prerequisites
+        shell: bash
+        run: |
+          if [[ -f gradlew && -f gradle/wrapper/gradle-wrapper.jar && -f settings.gradle.kts && -f androidApp/build.gradle.kts && -f shared/build.gradle.kts && -d androidApp/src && -d shared/src ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Full app source not imported; Android compilation skipped."
+            echo "Android compilation SKIPPED: required source files are missing." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/setup-java@v4
+        if: steps.prerequisites.outputs.ready == 'true'
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        if: steps.prerequisites.outputs.ready == 'true'
+      - name: Compile Android debug APK
+        if: steps.prerequisites.outputs.ready == 'true'
+        run: bash ./gradlew :androidApp:assembleDebug --stacktrace
+      - uses: actions/upload-artifact@v4
+        if: steps.prerequisites.outputs.ready == 'true'
+        with:
+          name: REDACTED-debug-apk
+          path: androidApp/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

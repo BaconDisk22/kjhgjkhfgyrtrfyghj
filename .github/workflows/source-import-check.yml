@@ -1,0 +1,27 @@
+name: Source import readiness
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    name: Report source import status
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check required source files
+        shell: bash
+        run: |
+          missing=()
+          for file in gradlew settings.gradle.kts androidApp/build.gradle.kts shared/build.gradle.kts; do
+            if [[ ! -f "$file" ]]; then missing+=("$file"); fi
+          done
+          if (( ${#missing[@]} > 0 )); then
+            echo "## Source import pending" >> "$GITHUB_STEP_SUMMARY"
+            printf 'Missing: %s\n' "${missing[*]}" >> "$GITHUB_STEP_SUMMARY"
+            echo "Android build has not run. Do not treat this successful status report as build verification." >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::REDACTED source import pending; Android build not verified."
+          else
+            echo "Core source files are present; compilation and device tests still required." >> "$GITHUB_STEP_SUMMARY"
+          fi
